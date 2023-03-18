@@ -280,7 +280,6 @@ for epoch in range(epochs):
     total, correct, test_loss = 0.0, 0.0, 0.0
     loss_kl_total = 0.0
     model_quant.train()
-    #for x, target in Sampleloader:
     for batch_idx, (x, target) in enumerate(train_loader):
         x, target = Variable(x.cuda()), Variable(target.cuda())
         all_W_kernels = optimizer.param_groups[1]['params']
@@ -335,15 +334,12 @@ for epoch in range(epochs):
         model_quant.eval()
         for x, target in test_loader:
             x, target = Variable(x.cuda()), Variable(target.cuda())
-            #score,_ = model_quant(x)
             score,_,_,_ = model_quant(x)
             loss = criterion_ce(score, target)
             _, predicted = torch.max(score.data, 1)
             total += target.size(0)
             correct += predicted.eq(target.data).sum()
             test_loss += loss
-        #model_quant = model_quant.cuda()
-        #model = model.cuda()
         acc = correct.float()/total
         print('test accuracy: ', acc)
         print('test loss: ', test_loss/total)
@@ -359,14 +355,9 @@ for epoch in range(epochs):
             best_acc = acc
 
 
-    #model_quant = model_quant.cuda()
     for i in range(len(all_W_kernels)):
             k_W = all_W_kernels[i]
             k_quant = all_G_kernels[i]    
             k_W.data, k_quant.data = k_quant.data, k_W.data      
-#with open('./models_distill/4bit/ResNet110_KL.txt', 'wb') as f:
-#    pickle.dump(loss_kl_epoch, f)
-        #    pickle.dump(ch_sp_epoch, f)
-    #print('test accuracy: ', correct.float()/total)
-    #print('test loss: ', test_loss/total)
+
     
