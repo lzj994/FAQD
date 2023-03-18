@@ -249,10 +249,13 @@ kernels = [{'params': all_G_kernels}]
 optimizer_quant = optim.SGD(kernels, lr=0)
 
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200, eta_min=0)
+temperature = 5
+criterion_kl = nn.KLDivLoss(size_average=False).cuda()
 if loss_type == 'MSE':
     criterion = nn.MSELoss().cuda()
 elif loss_type == 'KL':
-    criterion = nn.KLDivLoss(size_average=False).cuda()
+    criterion = lambda score_t,score: criterion_kl(F.log_softmax(score_t/temperature, dim=1), F.softmax(score/temperature, dim=1))*temperature**2
+
 criterion_nnl = nn.NLLLoss().cuda()
 criterion_ce = nn.CrossEntropyLoss().cuda()
 
