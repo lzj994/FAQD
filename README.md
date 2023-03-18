@@ -4,7 +4,7 @@ Code for Feature Affinity Assisted Knowledge Distillation and Quantization of De
 https://arxiv.org/pdf/2302.10899.pdf
 
 # Model Definitions:
-regular ResNet: weight_quantization/resnet_cifar.py
+Regular ResNet: weight_quantization/resnet_cifar.py
 
 Quantized ReLU with straight-through estimator: full_quantization/quan_uni_type.py
 
