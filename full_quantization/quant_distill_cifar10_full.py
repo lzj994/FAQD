@@ -47,7 +47,8 @@ parser.add_argument('--gd_type', default='mean', type=str, help='Method to compu
 parser.add_argument('--gd_alpha', action = 'store_false', help = 'Whether compute gradient of alpha.')
 args = parser.parse_args()
 
-
+############ redefine regualr Resnet for loading teacher model as well as pretrained student model############
+##############################################################################################################
 def conv3x3(in_planes, out_planes, stride=1):
     """
     3x3 convolution with padding
