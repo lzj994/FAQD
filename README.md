@@ -3,6 +3,12 @@
 Code for Feature Affinity Assisted Knowledge Distillation and Quantization of Deep Neural Networks on Label-Free Data
 https://arxiv.org/pdf/2302.10899.pdf
 
+# Model Definitions:
+regular ResNet: weight_quantization/resnet_cifar.py
+Quantized ReLU with straight-through estimator: full_quantization/quan_uni_type.py
+ResNet with quantized activation: full_quantization/resnet_type_cifar.py
+
+
 # Example
 End-to-end label-free weight quantization on CIFAR-100 dataset
 ```shell
