@@ -45,10 +45,11 @@ parser.add_argument('--bfun', default='inplt', type=str, help='Method to Quantiz
 parser.add_argument('--rate_factor', default=0.01, type=float, help='rate factor for alpha.')
 parser.add_argument('--gd_type', default='mean', type=str, help='Method to compute gradient of alpha.')
 parser.add_argument('--gd_alpha', action = 'store_false', help = 'Whether compute gradient of alpha.')
+parser.add_argument('--FA_type', default= 'FA', type=str, help='type of Knowledge distillation loss.', choices = ['FA', 'FFA'])
+parser.add_argument('--num_ensemble', default=15, type=int, help='Number of ensemble for fast fa loss.')
 args = parser.parse_args()
 
-############ redefine regualr Resnet for loading teacher model as well as pretrained student model############
-##############################################################################################################
+
 def conv3x3(in_planes, out_planes, stride=1):
     """
     3x3 convolution with padding
@@ -261,6 +262,38 @@ def fa_loss(feat, ref_feat):
 
     return  loss
 
+def fast_fa_loss(feat, ref_feat, dim = 15, order = 1):
+    torch.manual_seed(1)
+    batch_size, ch, h, w = feat.size(0), feat.size(1), feat.size(2), feat.size(3)
+
+    # generating random vector  (HW) x dim
+    vec = torch.randn(h*w, dim).detach().unsqueeze(0).repeat(batch_size,1,1).cuda()
+        
+    feat = feat.view(batch_size, ch, -1)  # [batch, ch, HW]
+    norm_feat = feat.norm(p=2,dim=1).unsqueeze(1)
+    feat = torch.div(feat, norm_feat)
+    tran_feat = feat.permute(0,2,1)    # [batch, HW, ch]
+
+    ft_map = torch.matmul(tran_feat, torch.matmul(feat, vec) )
+        
+
+    ref_feat = F.interpolate(ref_feat, size=(h,w),mode='bilinear', align_corners=True)
+    ref_feat = ref_feat.view(batch_size, ref_feat.size(1), -1)
+    norm_ref_feat = ref_feat.norm(p=2,dim=1).unsqueeze(1)
+    ref_feat = torch.div(ref_feat, norm_ref_feat)
+    tran_ref_feat = ref_feat.permute(0,2,1)
+
+
+    refft_map = torch.matmul(tran_ref_feat, torch.matmul(ref_feat, vec) )
+    if order == 1:
+        #loss = (ft_map-refft_map).norm(p=1)/(h*h*w*w*dim)
+        loss = (ft_map-refft_map).abs().sum(1).mean(-1).sum()/(h*h*w*w)
+    elif order == 2:
+        #loss = (ft_map-refft_map).norm(p=2)/(h*w*dim)
+        loss = torch.sqrt((ft_map-refft_map).pow(2).sum(1).mean(-1).sum())/(h*w)
+        
+    return  loss
+
 
 def get_optimizer_full(model, learning_rate=1e-3, weight_decay=1e-4, additional = None, decay_factor = 0.01): 
     weights = [
@@ -319,6 +352,8 @@ teacher_root = args.teacher_root
 student_root = args.student_root
 loss_type = args.KD_loss
 epochs = args.num_epoch
+FA_type = args.FA_type
+num_ensemble = args.num_ensemble
 
 download = True   
 normalize = transforms.Normalize(mean=[0.507, 0.487, 0.441], std=[0.267, 0.256, 0.276])
@@ -405,6 +440,10 @@ if loss_type == 'MSE':
     criterion = nn.MSELoss().cuda()
 elif loss_type == 'KL':
     criterion = lambda score_t,score: criterion_kl(F.log_softmax(score_t/temperature, dim=1), F.softmax(score/temperature, dim=1))*temperature**2
+if FA_type == 'FA':
+    FA_loss = lambda feat, ref_feat: fa_loss(feat, ref_feat)
+elif FA_type == 'FFA':
+    FA_loss = lambda feat, ref_feat: fast_fa_loss(feat, ref_feat, dim = num_ensemble)
 
 test_loss, total, correct, correct1, correct2 = 0.0, 0.0, 0.0, 0.0, 0.0
 best_acc = 0.0
@@ -458,7 +497,7 @@ for epoch in range(epochs):
 
         loss_KD = criterion(score_t, score)
         loss_nnl = criterion_nnl(F.log_softmax(score_t, dim=1), target)
-        loss_f1, loss_f2, loss_f3 = fa_loss(feat1, ref_feat1), fa_loss(feat2, ref_feat2), fa_loss(feat3, ref_feat3)
+        loss_f1, loss_f2, loss_f3 = FA_loss(feat1, ref_feat1), FA_loss(feat2, ref_feat2), FA_loss(feat3, ref_feat3)
         loss = KD_coef*loss_KD + fa_coef*loss_f1 + fa_coef*loss_f2 + fa_coef*loss_f3 + label_coef*loss_nnl
         loss.backward()
         
