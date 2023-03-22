@@ -269,6 +269,38 @@ def fa_loss(feat, ref_feat):
 
     return  loss
 
+def fast_fa_loss(feat, ref_feat, dim = 15, order = 1):
+    torch.manual_seed(1)
+    batch_size, ch, h, w = feat.size(0), feat.size(1), feat.size(2), feat.size(3)
+
+    # generating random vector  (HW) x dim
+    vec = torch.randn(h*w, dim).detach().unsqueeze(0).repeat(batch_size,1,1).cuda()
+        
+    feat = feat.view(batch_size, ch, -1)  # [batch, ch, HW]
+    norm_feat = feat.norm(p=2,dim=1).unsqueeze(1)
+    feat = torch.div(feat, norm_feat)
+    tran_feat = feat.permute(0,2,1)    # [batch, HW, ch]
+
+    ft_map = torch.matmul(tran_feat, torch.matmul(feat, vec) )
+        
+
+    ref_feat = F.interpolate(ref_feat, size=(h,w),mode='bilinear', align_corners=True)
+    ref_feat = ref_feat.view(batch_size, ref_feat.size(1), -1)
+    norm_ref_feat = ref_feat.norm(p=2,dim=1).unsqueeze(1)
+    ref_feat = torch.div(ref_feat, norm_ref_feat)
+    tran_ref_feat = ref_feat.permute(0,2,1)
+
+
+    refft_map = torch.matmul(tran_ref_feat, torch.matmul(ref_feat, vec) )
+    if order == 1:
+        #loss = (ft_map-refft_map).norm(p=1)/(h*h*w*w*dim)
+        loss = (ft_map-refft_map).abs().sum(1).mean(-1).sum()/(h*h*w*w)
+    elif order == 2:
+        #loss = (ft_map-refft_map).norm(p=2)/(h*w*dim)
+        loss = torch.sqrt((ft_map-refft_map).pow(2).sum(1).mean(-1).sum())/(h*w)
+        
+    return  loss
+
 
 
 def get_optimizer_full(model, learning_rate=1e-3, weight_decay=1e-4, additional = None, decay_factor = 0.01):
