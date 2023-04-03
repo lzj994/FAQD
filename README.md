@@ -1,8 +1,6 @@
 ## FAQD
 # Feature Affinity Assisted Quantized Distillation
 
-Code for 
-
 Feature Affinity Assisted Knowledge Distillation and Quantization of Deep Neural Networks on Label-Free Data
 
 https://arxiv.org/pdf/2302.10899.pdf
