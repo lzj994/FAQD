@@ -523,7 +523,6 @@ for epoch in range(epochs):
         if acc > best_acc:    
             print('svaing........')
             #torch.save(state, './models_distill/T/ckpt_quant_56.t7')
-            #torch.save(state, './models_distill/ckpt_quant_20.t7')
             best_acc = acc
 
     for i in range(len(all_W_kernels)):
